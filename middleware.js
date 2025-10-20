@@ -1,4 +1,4 @@
-// src/middleware.js
+// /middleware.js
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from './lib/auth'
 
