@@ -1,0 +1,284 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Change to "sqlite" for development
+  url      = env("DATABASE_URL")
+}
+
+// Tenant model for multi-tenancy
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  logo        String?
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  vehicles    Vehicle[]
+  clients     Client[]
+  deliveries  Delivery[]
+  maintenance MaintenanceRecord[]
+  settings    TenantSettings?
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  id                String  @id @default(cuid())
+  tenantId          String  @unique
+  tenant            Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  currency          String  @default("USD")
+  timezone          String  @default("UTC")
+  pricePerKm        Float   @default(0.0)
+  pricePerHour      Float   @default(0.0)
+  fuelSurcharge     Float   @default(0.0)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("tenant_settings")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  DRIVER
+  CLIENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  email     String
+  password  String
+  name      String
+  phone     String?
+  role      UserRole
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedVehicles Vehicle[]
+  deliveries      Delivery[] @relation("AssignedDriver")
+  maintenanceRecords MaintenanceRecord[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  IN_TRANSIT
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  TRAILER
+  PICKUP
+  MOTORCYCLE
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  licensePlate    String
+  make            String
+  model           String
+  year            Int
+  type            VehicleType
+  capacity        Float         // in tons or cubic meters
+  status          VehicleStatus @default(AVAILABLE)
+  
+  // Driver assignment
+  assignedDriverId String?
+  assignedDriver   User?         @relation(fields: [assignedDriverId], references: [id])
+  
+  // Vehicle details
+  vin             String?
+  color           String?
+  fuelType        String        @default("Diesel")
+  currentMileage  Float         @default(0)
+  
+  // Insurance & Registration
+  insuranceExpiry DateTime?
+  registrationExpiry DateTime?
+  
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  deliveries      Delivery[]
+  maintenanceRecords MaintenanceRecord[]
+  
+  @@unique([licensePlate, tenantId])
+  @@map("vehicles")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String
+  email       String?
+  phone       String
+  address     String
+  contactPerson String?
+  
+  // Billing info
+  billingAddress String?
+  taxId          String?
+  paymentTerms   Int      @default(30) // days
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  deliveries  Delivery[]
+
+  @@map("clients")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Delivery {
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Basic info
+  trackingNumber String        @unique
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id])
+  
+  vehicleId      String?
+  vehicle        Vehicle?      @relation(fields: [vehicleId], references: [id])
+  
+  driverId       String?
+  driver         User?         @relation("AssignedDriver", fields: [driverId], references: [id])
+  
+  // Delivery details
+  pickupAddress    String
+  pickupLat        Float?
+  pickupLng        Float?
+  pickupDateTime   DateTime?
+  
+  deliveryAddress  String
+  deliveryLat      Float?
+  deliveryLng      Float?
+  deliveryDateTime DateTime?
+  
+  // Cargo info
+  cargoDescription String
+  weight           Float?
+  dimensions       String? // "LxWxH"
+  specialInstructions String?
+  
+  status           DeliveryStatus @default(PENDING)
+  priority         DeliveryPriority @default(NORMAL)
+  
+  // Pricing
+  estimatedPrice   Float?
+  actualPrice      Float?
+  distance         Float? // in km
+  estimatedDuration Int?   // in minutes
+  
+  // Timestamps
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  deliveredAt      DateTime?
+  
+  notes            String?
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("deliveries")
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  EMERGENCY
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model MaintenanceRecord {
+  id          String            @id @default(cuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  vehicleId   String
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id])
+  
+  technicianId String?
+  technician   User?            @relation(fields: [technicianId], references: [id])
+  
+  type        MaintenanceType
+  status      MaintenanceStatus @default(SCHEDULED)
+  
+  title       String
+  description String
+  cost        Float?
+  
+  scheduledAt DateTime
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // Vehicle state
+  mileageAtService Float?
+  nextServiceMileage Float?
+  
+  // Parts and labor
+  partsUsed   Json? // Array of parts
+  laborHours  Float?
+  
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("maintenance_records")
+}
