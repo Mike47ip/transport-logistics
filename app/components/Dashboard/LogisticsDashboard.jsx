@@ -156,7 +156,7 @@ const LogisticsDashboard = () => {
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(stats.vehicleStats).map(([status, count]) => (
+                  {Object.entries(stats.vehicleStats || {}).map(([status, count]) => (
                     <div key={status} className="text-center p-4 bg-gray-50 rounded-lg">
                       <p className="text-2xl font-bold text-gray-900">{count}</p>
                       <p className="text-sm text-gray-600 capitalize">{status.replace('_', ' ')}</p>
@@ -186,7 +186,7 @@ const LogisticsDashboard = () => {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {stats.recentDeliveries.length > 0 ? (
+                {(stats.recentDeliveries || []).length > 0 ? (
                   stats.recentDeliveries.map((delivery) => (
                     <div key={delivery.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex-1">

@@ -23,41 +23,66 @@ const PrivateAuthSystem = () => {
   });
 
   const handleLogin = async () => {
+    console.log('🎯 FRONTEND: Login button clicked');
+    console.log('📝 FRONTEND: Login data:', {
+      email: loginData.email,
+      password: '***hidden***',
+      tenantSlug: loginData.tenantSlug || 'empty'
+    });
+
     setLoading(true);
     setErrors({});
 
     try {
+      console.log('📡 FRONTEND: Making fetch request to /api/auth/login');
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginData)
       });
 
+      console.log('📨 FRONTEND: Response status:', response.status);
+      console.log('📨 FRONTEND: Response ok:', response.ok);
+
       const data = await response.json();
+      console.log('📦 FRONTEND: Response data:', data);
 
       if (response.ok) {
+        console.log('✅ FRONTEND: Login successful');
+        
         // Store token and user data
+        console.log('💾 FRONTEND: Storing token and user in localStorage');
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
+        console.log('👤 FRONTEND: User role:', data.user.role);
+        
         // Redirect based on user role
         if (data.user.role === 'SUPER_ADMIN') {
+          console.log('🔄 FRONTEND: Redirecting to /admin');
           window.location.href = '/admin';
         } else {
+          console.log('🔄 FRONTEND: Redirecting to /dashboard');
           window.location.href = '/dashboard';
         }
       } else {
+        console.log('❌ FRONTEND: Login failed');
+        console.log('📄 FRONTEND: Error message:', data.error);
         setErrors({ general: data.error });
       }
     } catch (error) {
+      console.error('💥 FRONTEND: Fetch error:', error);
       setErrors({ general: 'Login failed. Please try again.' });
     } finally {
+      console.log('🔄 FRONTEND: Setting loading to false');
       setLoading(false);
     }
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
+      console.log('⌨️ FRONTEND: Enter key pressed, triggering login');
       handleLogin();
     }
   };
@@ -102,7 +127,7 @@ const PrivateAuthSystem = () => {
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Enter your email"
                 />
               </div>
@@ -120,7 +145,7 @@ const PrivateAuthSystem = () => {
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Enter your password"
                 />
                 <button
@@ -144,7 +169,7 @@ const PrivateAuthSystem = () => {
                   value={loginData.tenantSlug}
                   onChange={(e) => setLoginData({ ...loginData, tenantSlug: e.target.value })}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Enter company code"
                 />
               </div>

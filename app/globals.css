@@ -24,3 +24,16 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Fix for modal inputs - ensure they don't inherit dark mode colors */
+.bg-white input,
+.bg-white textarea, 
+.bg-white select {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
+  color: #6b7280;
+}

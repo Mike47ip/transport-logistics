@@ -1,4 +1,3 @@
-// src/app/page.js
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,20 +6,15 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
+    // Check if user is logged in first
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
     
-    if (token && user) {
-      const userData = JSON.parse(user);
-      // Redirect based on user role
-      if (userData.role === 'SUPER_ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+    if (!token) {
+      // No token = redirect to login
+      router.replace('/login');
     } else {
-      router.push('/login');
+      // Has token = redirect to dashboard (AuthWrapper will handle role routing)
+      router.replace('/dashboard');
     }
   }, [router]);
 
