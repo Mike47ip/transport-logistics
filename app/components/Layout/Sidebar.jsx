@@ -114,7 +114,7 @@ const Sidebar = ({ user, isCollapsed, onToggle, isMobileOpen, onMobileClose }) =
                   }`}
                   title={isCollapsed ? item.name : ''}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${
+                  <Icon className={`w-5 h-5 shrink-0 ${
                     isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                   }`} />
                   
@@ -133,7 +133,7 @@ const Sidebar = ({ user, isCollapsed, onToggle, isMobileOpen, onMobileClose }) =
           {/* User Info */}
           <div className="border-t border-gray-200 p-3">
             <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
-              <div className="bg-gray-100 p-2 rounded-full flex-shrink-0">
+              <div className="bg-gray-100 p-2 rounded-full shrink-0">
                 <Users className="w-4 h-4 text-gray-600" />
               </div>
               {!isCollapsed && (

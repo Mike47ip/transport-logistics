@@ -73,7 +73,7 @@ const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
                 <div className="flex items-center text-xs text-gray-500">
                   {!isSystemAdmin && (
                     <>
-                      <Building className="w-3 h-3 mr-1 flex-shrink-0" />
+                      <Building className="w-3 h-3 mr-1 shrink-0" />
                       <span className="truncate max-w-24">{companyName}</span>
                     </>
                   )}
@@ -94,7 +94,7 @@ const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
                   
                   {/* Company Info */}
                   <div className="flex items-center text-xs text-gray-600 mt-2">
-                    <Building className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <Building className="w-3 h-3 mr-1 shrink-0" />
                     <span className="truncate">
                       {isSystemAdmin ? 'LogiTrack System' : companyName}
                     </span>

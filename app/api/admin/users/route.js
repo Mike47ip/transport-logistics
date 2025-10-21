@@ -1,4 +1,4 @@
-// src/app/api/admin/users/route.js
+// app\api\admin\users\route.js
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser, hashPassword } from '@/lib/auth'
