@@ -8,7 +8,8 @@ import {
   User,
   LogOut,
   Settings,
-  ChevronDown
+  ChevronDown,
+  Building
 } from 'lucide-react';
 
 const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
@@ -20,6 +21,10 @@ const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
     localStorage.removeItem('user');
     router.replace('/login');
   };
+
+  // Get company/tenant name
+  const companyName = user?.tenant?.name || 'System Admin';
+  const isSystemAdmin = user?.role === 'SUPER_ADMIN';
 
   return (
     <div className={`fixed top-0 right-0 z-30 bg-white border-b border-gray-200 h-16 transition-all duration-300 ${
@@ -60,22 +65,51 @@ const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center space-x-2 lg:space-x-3 p-2 rounded-lg hover:bg-gray-100"
             >
-              <div className="bg-blue-600 p-1.5 lg:p-2 rounded-full">
+              <div className={`p-1.5 lg:p-2 rounded-full ${isSystemAdmin ? 'bg-red-600' : 'bg-blue-600'}`}>
                 <User className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
               </div>
-              <div className="hidden md:block text-left">
+              <div className="hidden md:block text-left min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate max-w-32">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.role?.replace('_', ' ')}</p>
+                <div className="flex items-center text-xs text-gray-500">
+                  {!isSystemAdmin && (
+                    <>
+                      <Building className="w-3 h-3 mr-1 flex-shrink-0" />
+                      <span className="truncate max-w-24">{companyName}</span>
+                    </>
+                  )}
+                  {isSystemAdmin && (
+                    <span className="text-red-600 font-medium">System Admin</span>
+                  )}
+                </div>
               </div>
               <ChevronDown className="w-4 h-4 text-gray-400 hidden lg:block" />
             </button>
 
             {/* Dropdown Menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-                <div className="px-4 py-2 border-b border-gray-200">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                <div className="px-4 py-3 border-b border-gray-200">
                   <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <p className="text-xs text-gray-500 truncate mb-1">{user?.email}</p>
+                  
+                  {/* Company Info */}
+                  <div className="flex items-center text-xs text-gray-600 mt-2">
+                    <Building className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span className="truncate">
+                      {isSystemAdmin ? 'LogiTrack System' : companyName}
+                    </span>
+                  </div>
+                  
+                  {/* Role Badge */}
+                  <div className="mt-2">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      isSystemAdmin 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user?.role?.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
                 
                 <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -87,6 +121,13 @@ const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
                   <Settings className="w-4 h-4 mr-3" />
                   Settings
                 </button>
+                
+                {!isSystemAdmin && (
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <Building className="w-4 h-4 mr-3" />
+                    Company Settings
+                  </button>
+                )}
                 
                 <hr className="my-1 border-gray-200" />
                 
