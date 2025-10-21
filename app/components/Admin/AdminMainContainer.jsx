@@ -10,8 +10,9 @@ import TenantList from './TenantList';
 import UserList from './UserList';
 import TenantFormModal from './TenantFormModal';
 import UserFormModal from './UserFormModal';
+import DashboardLayout from '@/components/Layout/DashboardLayout';
 
-const AdminMainContainer = () => {
+const AdminMainContainer = ({ user }) => {
   const [activeTab, setActiveTab] = useState('tenants');
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
@@ -216,21 +217,23 @@ const AdminMainContainer = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <DashboardLayout user={user}>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+    <DashboardLayout user={user}>
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">System Administration</h1>
               <p className="text-gray-600">Manage tenants and users across the platform</p>
@@ -254,7 +257,7 @@ const AdminMainContainer = () => {
           </div>
 
           {/* Tabs */}
-          <div className="border-b">
+          <div className="border-b mt-6">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('tenants')}
@@ -281,9 +284,7 @@ const AdminMainContainer = () => {
             </nav>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
@@ -330,28 +331,28 @@ const AdminMainContainer = () => {
             searchTerm={searchTerm}
           />
         )}
+
+        {/* Modals */}
+        <TenantFormModal
+          show={showTenantModal}
+          editingTenant={editingTenant}
+          formData={tenantFormData}
+          onFormDataChange={setTenantFormData}
+          onSubmit={handleTenantSubmit}
+          onClose={resetTenantForm}
+        />
+
+        <UserFormModal
+          show={showUserModal}
+          editingUser={editingUser}
+          formData={userFormData}
+          onFormDataChange={setUserFormData}
+          onSubmit={handleUserSubmit}
+          onClose={resetUserForm}
+          tenants={tenants}
+        />
       </div>
-
-      {/* Modals */}
-      <TenantFormModal
-        show={showTenantModal}
-        editingTenant={editingTenant}
-        formData={tenantFormData}
-        onFormDataChange={setTenantFormData}
-        onSubmit={handleTenantSubmit}
-        onClose={resetTenantForm}
-      />
-
-      <UserFormModal
-        show={showUserModal}
-        editingUser={editingUser}
-        formData={userFormData}
-        onFormDataChange={setUserFormData}
-        onSubmit={handleUserSubmit}
-        onClose={resetUserForm}
-        tenants={tenants}
-      />
-    </div>
+    </DashboardLayout>
   );
 };
 
