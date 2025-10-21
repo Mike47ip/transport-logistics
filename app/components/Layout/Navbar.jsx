@@ -11,7 +11,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const Navbar = ({ user, onMenuToggle }) => {
+const Navbar = ({ user, onMobileMenuToggle, isCollapsed }) => {
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -22,12 +22,14 @@ const Navbar = ({ user, onMenuToggle }) => {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-64 z-40 bg-white border-b border-gray-200 h-16">
-      <div className="flex items-center justify-between h-full px-6">
+    <div className={`fixed top-0 right-0 z-30 bg-white border-b border-gray-200 h-16 transition-all duration-300 ${
+      isCollapsed ? 'left-16' : 'left-64'
+    } lg:left-${isCollapsed ? '16' : '64'}`}>
+      <div className="flex items-center justify-between h-full px-4 lg:px-6">
         {/* Left side - Mobile menu button */}
         <button
-          onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          onClick={onMobileMenuToggle}
+          className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -39,13 +41,13 @@ const Navbar = ({ user, onMenuToggle }) => {
             <input
               type="text"
               placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-sm"
             />
           </div>
         </div>
 
         {/* Right side - Notifications & User menu */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Notifications */}
           <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
             <Bell className="w-5 h-5" />
@@ -56,24 +58,24 @@ const Navbar = ({ user, onMenuToggle }) => {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100"
+              className="flex items-center space-x-2 lg:space-x-3 p-2 rounded-lg hover:bg-gray-100"
             >
-              <div className="bg-blue-600 p-2 rounded-full">
-                <User className="w-4 h-4 text-white" />
+              <div className="bg-blue-600 p-1.5 lg:p-2 rounded-full">
+                <User className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                <p className="text-xs text-gray-500">{user?.role?.replace('_', ' ')}</p>
+                <p className="text-sm font-medium text-gray-900 truncate max-w-32">{user?.name}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.role?.replace('_', ' ')}</p>
               </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
+              <ChevronDown className="w-4 h-4 text-gray-400 hidden lg:block" />
             </button>
 
             {/* Dropdown Menu */}
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
                 <div className="px-4 py-2 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
                 
                 <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
