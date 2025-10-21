@@ -241,16 +241,16 @@ const AdminMainContainer = ({ user }) => {
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowTenantModal(true)}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center cursor-pointer"
               >
-                <Building className="w-4 h-4 mr-2" />
+                <Building className="w-4 h-4 mr-2 " />
                 New Tenant
               </button>
               <button
                 onClick={() => setShowUserModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center cursor-pointer"
               >
-                <UserPlus className="w-4 h-4 mr-2" />
+                <UserPlus className="w-4 h-4 mr-2 " />
                 New User
               </button>
             </div>

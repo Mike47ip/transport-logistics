@@ -13,7 +13,10 @@ import {
   BarChart3,
   Shield,
   ChevronLeft,
-  X
+  X,
+  Receipt,
+  Wrench,
+  TrendingUp
 } from 'lucide-react';
 
 const Sidebar = ({ user, isCollapsed, onToggle, isMobileOpen, onMobileClose }) => {
@@ -30,9 +33,12 @@ const Sidebar = ({ user, isCollapsed, onToggle, isMobileOpen, onMobileClose }) =
   const regularNavItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Vehicles', href: '/vehicles', icon: Truck },
+    { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Deliveries', href: '/deliveries', icon: Package },
-    { name: 'Clients', href: '/clients', icon: Users },
     { name: 'Drivers', href: '/drivers', icon: UserCheck },
+    { name: 'Maintenance', href: '/maintenance', icon: Wrench },
+    { name: 'Expenses', href: '/expenses', icon: Receipt },
+    { name: 'Sales/Revenue', href: '/sales', icon: TrendingUp },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -91,7 +97,7 @@ const Sidebar = ({ user, isCollapsed, onToggle, isMobileOpen, onMobileClose }) =
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-2 py-6 space-y-1">
+          <nav className="flex-1 px-2 py-6 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
