@@ -51,6 +51,7 @@ model TenantSettings {
 }
 
 enum UserRole {
+  SUPER_ADMIN  
   ADMIN
   MANAGER
   DRIVER

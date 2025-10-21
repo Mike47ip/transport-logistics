@@ -1,6 +1,6 @@
 // /middleware.js
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from './lib/auth'
+import { getCurrentUser } from './app/lib/auth'
 
 export async function middleware(request) {
   // Skip auth for public routes
