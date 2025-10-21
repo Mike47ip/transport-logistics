@@ -100,7 +100,9 @@ const LogisticsDashboard = ({ user }) => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600">Welcome back! Here's what's happening with your fleet.</p>
+              <p className="text-gray-600">
+                Welcome back, {user?.name?.split(' ')[0] || 'User'}! Here's what's happening with your fleet.
+              </p>
             </div>
             <div className="flex space-x-3">
               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
