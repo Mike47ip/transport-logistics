@@ -106,3 +106,59 @@ export async function POST(request) {
     )
   }
 }
+
+export async function PUT(request) {
+  try {
+    console.log('🔥 VEHICLE_API: PUT request started')
+    
+    const user = await getCurrentUser(request)
+    console.log('🔥 VEHICLE_API: User authenticated:', !!user, user?.role)
+    
+    if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
+      console.log('🔥 VEHICLE_API: Authorization failed')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Extract vehicle ID from URL
+    const url = new URL(request.url)
+    const vehicleId = url.pathname.split('/').pop()
+    console.log('🔥 VEHICLE_API: Vehicle ID from URL:', vehicleId)
+
+    const data = await request.json()
+    console.log('🔥 VEHICLE_API: Update data:', data)
+
+    // Verify vehicle belongs to user's tenant
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: {
+        id: vehicleId,
+        tenantId: user.tenantId
+      }
+    })
+
+    if (!existingVehicle) {
+      console.log('🔥 VEHICLE_API: Vehicle not found or unauthorized')
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 })
+    }
+
+    console.log('🔥 VEHICLE_API: Updating vehicle in database...')
+    const updatedVehicle = await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: data,
+      include: {
+        assignedDriver: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    })
+
+    console.log('🔥 VEHICLE_API: Vehicle updated successfully:', updatedVehicle.id)
+    return NextResponse.json(updatedVehicle)
+  } catch (error) {
+    console.error('🔥 VEHICLE_API: PUT Error details:', error)
+    console.error('🔥 VEHICLE_API: PUT Error message:', error.message)
+    return NextResponse.json(
+      { error: 'Failed to update vehicle' },
+      { status: 500 }
+    )
+  }
+}

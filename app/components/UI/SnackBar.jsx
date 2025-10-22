@@ -1,3 +1,7 @@
+// app\components\UI\SnackBar.jsx
+
+
+
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 

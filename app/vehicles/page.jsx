@@ -20,6 +20,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import VehicleFormModal from '@/components/Vehicles/VehicleFormModal';
 import VehicleDetailModal from '@/components/Vehicles/VehicleDetailModal';
 import DriverAssignmentModal from '@/components/Vehicles/DriverAssignmentModal';
+import Snackbar from '@/components/UI/Snackbar';
 
 const VehiclesPage = () => {
   const [user, setUser] = useState(null);
@@ -32,6 +33,7 @@ const VehiclesPage = () => {
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -41,18 +43,41 @@ const VehiclesPage = () => {
     fetchVehicles();
   }, []);
 
+  const showSnackbar = (message, type = 'success') => {
+    console.log('🚛 SNACKBAR: Showing message:', message, 'Type:', type);
+    setSnackbar({ show: true, message, type });
+  };
+
+  const hideSnackbar = () => {
+    console.log('🚛 SNACKBAR: Hiding snackbar');
+    setSnackbar({ show: false, message: '', type: 'success' });
+  };
+
   const fetchVehicles = async () => {
     try {
+      console.log('🚛 VEHICLES: Fetching vehicles...');
       setLoading(true);
       const response = await fetch('/api/vehicles', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
+      
+      console.log('🚛 VEHICLES: API Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('🚛 VEHICLES: Fetch failed:', errorData);
+        showSnackbar('Failed to load vehicles', 'error');
+        return;
+      }
+      
       const data = await response.json();
+      console.log('🚛 VEHICLES: Loaded vehicles count:', data.length);
       setVehicles(data);
     } catch (error) {
-      console.error('Error fetching vehicles:', error);
+      console.error('🚛 VEHICLES: Fetch error:', error);
+      showSnackbar('Failed to load vehicles', 'error');
     } finally {
       setLoading(false);
     }
@@ -60,8 +85,15 @@ const VehiclesPage = () => {
 
   const handleVehicleSubmit = async (vehicleData) => {
     try {
+      console.log('🚛 VEHICLE_SUBMIT: Starting submission...');
+      console.log('🚛 VEHICLE_SUBMIT: Vehicle data:', vehicleData);
+      console.log('🚛 VEHICLE_SUBMIT: Editing mode:', !!editingVehicle);
+      
       const url = editingVehicle ? `/api/vehicles/${editingVehicle.id}` : '/api/vehicles';
       const method = editingVehicle ? 'PUT' : 'POST';
+      
+      console.log('🚛 VEHICLE_SUBMIT: API URL:', url);
+      console.log('🚛 VEHICLE_SUBMIT: HTTP Method:', method);
       
       const response = await fetch(url, {
         method,
@@ -72,13 +104,28 @@ const VehiclesPage = () => {
         body: JSON.stringify(vehicleData)
       });
 
+      console.log('🚛 VEHICLE_SUBMIT: Response status:', response.status);
+      console.log('🚛 VEHICLE_SUBMIT: Response ok:', response.ok);
+      
+      const responseData = await response.json();
+      console.log('🚛 VEHICLE_SUBMIT: Response data:', responseData);
+
       if (response.ok) {
+        console.log('🚛 VEHICLE_SUBMIT: Success! Refreshing list...');
         await fetchVehicles();
         setShowVehicleModal(false);
         setEditingVehicle(null);
+        showSnackbar(
+          editingVehicle ? 'Vehicle updated successfully!' : 'Vehicle added successfully!',
+          'success'
+        );
+      } else {
+        console.error('🚛 VEHICLE_SUBMIT: Failed with error:', responseData.error);
+        showSnackbar(responseData.error || 'Failed to save vehicle', 'error');
       }
     } catch (error) {
-      console.error('Error saving vehicle:', error);
+      console.error('🚛 VEHICLE_SUBMIT: Submit error:', error);
+      showSnackbar('Failed to save vehicle', 'error');
     }
   };
 
@@ -98,8 +145,10 @@ const VehiclesPage = () => {
   };
 
   const handleDriverAssignment = async () => {
+    console.log('🚛 DRIVER_ASSIGN: Refreshing vehicles after assignment...');
     await fetchVehicles();
     setShowDriverModal(false);
+    showSnackbar('Driver assignment updated successfully!', 'success');
   };
 
   const handleScheduleMaintenance = (vehicle) => {
@@ -448,6 +497,14 @@ const VehiclesPage = () => {
           setSelectedVehicle(null);
         }}
         onAssign={handleDriverAssignment}
+      />
+
+      {/* Snackbar */}
+      <Snackbar
+        show={snackbar.show}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={hideSnackbar}
       />
     </DashboardLayout>
   );
