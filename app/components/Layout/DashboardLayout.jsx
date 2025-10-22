@@ -31,7 +31,7 @@ const DashboardLayout = ({ children, user }) => {
       />
       
       {/* Main Content Area */}
-      <div className={`transition-all duration-300 ${isCollapsed ? 'lg:ml-16' : 'lg:ml-64'} ml-0`}>
+      <div className={`transition-all duration-300 ${isCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
         {/* Top Navbar */}
         <Navbar 
           user={user} 
@@ -40,7 +40,7 @@ const DashboardLayout = ({ children, user }) => {
         />
         
         {/* Page Content */}
-        <main className="pt-16">
+        <main className="p-6">
           {children}
         </main>
       </div>

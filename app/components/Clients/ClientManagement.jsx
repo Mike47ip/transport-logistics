@@ -153,7 +153,7 @@ const ClientManagement = () => {
           )}
 
           <div className="flex items-start text-sm text-gray-600">
-            <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+            <MapPin className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
             <span className="line-clamp-2">{client.address}</span>
           </div>
 

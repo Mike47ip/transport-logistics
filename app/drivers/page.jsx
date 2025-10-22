@@ -14,7 +14,11 @@ import {
   Mail,
   Phone,
   Truck,
-  Package
+  Package,
+  Navigation,
+  Clock,
+  MapPin,
+  Route
 } from 'lucide-react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import DriverFormModal from '@/components/Drivers/DriverFormModal';
@@ -28,6 +32,7 @@ const DriversPage = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
+  const [selectedDriver, setSelectedDriver] = useState(null);
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
@@ -129,6 +134,10 @@ const DriversPage = () => {
     setShowDriverModal(true);
   };
 
+  const handleViewDriverDetails = (driver) => {
+    setSelectedDriver(driver);
+  };
+
   const getStatusBadge = (isActive) => {
     return isActive ? (
       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -141,6 +150,30 @@ const DriversPage = () => {
         Inactive
       </span>
     );
+  };
+
+  const getDeliveryStatusBadge = (status) => {
+    const statusConfig = {
+      PENDING: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
+      ASSIGNED: { color: 'bg-blue-100 text-blue-800', label: 'Assigned' },
+      IN_PROGRESS: { color: 'bg-purple-100 text-purple-800', label: 'In Progress' },
+      DELIVERED: { color: 'bg-green-100 text-green-800', label: 'Delivered' },
+      CANCELLED: { color: 'bg-red-100 text-red-800', label: 'Cancelled' }
+    };
+    
+    const config = statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const openMaps = (address) => {
+    const encodedAddress = encodeURIComponent(address);
+    const mapsUrl = `https://www.google.com/maps?q=${encodedAddress}`;
+    window.open(mapsUrl, '_blank');
   };
 
   const filteredDrivers = drivers.filter(driver => {
@@ -158,6 +191,13 @@ const DriversPage = () => {
   const activeDrivers = drivers.filter(d => d.isActive);
   const assignedDrivers = drivers.filter(d => d.assignedVehicles?.length > 0);
   const availableDrivers = drivers.filter(d => d.isActive && (!d.assignedVehicles || d.assignedVehicles.length === 0));
+
+  // Calculate delivery statistics
+  const driversWithActiveDeliveries = drivers.filter(d => 
+    d.deliveries && d.deliveries.some(delivery => 
+      ['ASSIGNED', 'IN_PROGRESS'].includes(delivery.status)
+    )
+  );
 
   const statsCards = [
     {
@@ -179,9 +219,9 @@ const DriversPage = () => {
       color: 'bg-purple-500'
     },
     {
-      title: 'Available',
-      value: availableDrivers.length,
-      icon: User,
+      title: 'With Active Deliveries',
+      value: driversWithActiveDeliveries.length,
+      icon: Package,
       color: 'bg-orange-500'
     }
   ];
@@ -201,24 +241,22 @@ const DriversPage = () => {
 
   return (
     <DashboardLayout user={user}>
-      <div className="p-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Driver Management</h1>
-              <p className="text-gray-600">Manage your drivers, assignments, and availability</p>
-            </div>
-            <div className="flex space-x-3">
-              <button 
-                onClick={() => setShowDriverModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Driver
-              </button>
-            </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Drivers</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Manage your driver team and track their deliveries
+            </p>
           </div>
+          <button
+            onClick={() => setShowDriverModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Driver
+          </button>
         </div>
 
         {/* Stats Cards */}
@@ -366,11 +404,28 @@ const DriversPage = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Package className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">
-                            {driver.deliveries?.length || 0}
-                          </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center">
+                            <Package className="w-4 h-4 text-gray-400 mr-2" />
+                            <span className="text-sm text-gray-900">
+                              {driver.deliveries?.length || 0} Total
+                            </span>
+                          </div>
+                          {driver.deliveries && driver.deliveries.length > 0 && (
+                            <div className="space-y-1">
+                              {driver.deliveries
+                                .filter(d => ['ASSIGNED', 'IN_PROGRESS'].includes(d.status))
+                                .slice(0, 2)
+                                .map((delivery) => (
+                                  <div key={delivery.id} className="flex items-center text-xs">
+                                    {getDeliveryStatusBadge(delivery.status)}
+                                    <span className="ml-2 text-gray-600 truncate max-w-24">
+                                      {delivery.trackingNumber}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -381,13 +436,18 @@ const DriversPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <button 
+                            onClick={() => handleViewDriverDetails(driver)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
                             onClick={() => handleEditDriver(driver)}
                             className="text-gray-600 hover:text-gray-800"
+                            title="Edit Driver"
                           >
                             <Edit className="w-4 h-4" />
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-800">
-                            <MoreVertical className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -399,6 +459,122 @@ const DriversPage = () => {
           )}
         </div>
       </div>
+
+      {/* Driver Details Modal */}
+      {selectedDriver && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Driver Details - {selectedDriver.name}
+              </h2>
+              <button
+                onClick={() => setSelectedDriver(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {/* Driver Info */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h3 className="font-medium text-gray-900 mb-3">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Email:</span>
+                    <p className="text-gray-900">{selectedDriver.email}</p>
+                  </div>
+                  {selectedDriver.phone && (
+                    <div>
+                      <span className="text-gray-600">Phone:</span>
+                      <p className="text-gray-900">{selectedDriver.phone}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-600">Status:</span>
+                    <div className="mt-1">
+                      {getStatusBadge(selectedDriver.isActive)}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Joined:</span>
+                    <p className="text-gray-900">
+                      {new Date(selectedDriver.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Deliveries */}
+              {selectedDriver.deliveries && selectedDriver.deliveries.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-medium text-gray-900 mb-3">Current Deliveries</h3>
+                  <div className="space-y-3">
+                    {selectedDriver.deliveries
+                      .filter(d => ['ASSIGNED', 'IN_PROGRESS'].includes(d.status))
+                      .map((delivery) => (
+                        <div key={delivery.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-900">
+                              {delivery.trackingNumber}
+                            </span>
+                            {getDeliveryStatusBadge(delivery.status)}
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-4 h-4 text-green-600 mt-0.5" />
+                              <div>
+                                <span className="text-gray-600">Pickup:</span>
+                                <p className="text-gray-900">{delivery.client?.name}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-4 h-4 text-red-600 mt-0.5" />
+                              <div>
+                                <span className="text-gray-600">Delivery:</span>
+                                <p className="text-gray-900">{delivery.deliveryAddress}</p>
+                                <button
+                                  onClick={() => openMaps(delivery.deliveryAddress)}
+                                  className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1 mt-1"
+                                >
+                                  <Navigation className="w-3 h-3" />
+                                  Open in Maps
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Vehicle Assignment */}
+              {selectedDriver.assignedVehicles && selectedDriver.assignedVehicles.length > 0 && (
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-3">Assigned Vehicles</h3>
+                  <div className="space-y-2">
+                    {selectedDriver.assignedVehicles.map((vehicle) => (
+                      <div key={vehicle.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <div className="bg-gray-100 p-2 rounded mr-3">
+                          <Truck className="w-5 h-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{vehicle.licensePlate}</div>
+                          <div className="text-sm text-gray-600">
+                            {vehicle.make} {vehicle.model} - {vehicle.status}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Driver Form Modal */}
       <DriverFormModal

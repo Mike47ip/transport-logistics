@@ -137,27 +137,29 @@ model Vehicle {
 }
 
 model Client {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  name        String
-  email       String?
-  phone       String
-  address     String
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String
+  address       String
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String   @default("Ghana")
   contactPerson String?
+  businessType  String?
+  taxId         String?
+  paymentTerms  Int      @default(30)
+  creditLimit   Float?
+  notes         String?
+  isActive      Boolean  @default(true)
+  tenantId      String
   
-  // Billing info
-  billingAddress String?
-  taxId          String?
-  paymentTerms   Int      @default(30) // days
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  deliveries    Delivery[]
   
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  deliveries  Delivery[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("clients")
 }

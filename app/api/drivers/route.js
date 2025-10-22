@@ -1,3 +1,5 @@
+// app\api\drivers\route.js
+
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser, hashPassword } from '@/lib/auth'
@@ -8,6 +10,7 @@ export async function GET(request) {
     
     const user = await getCurrentUser(request)
     if (!user) {
+      console.log('🚗 DRIVERS_API: User not authenticated')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -73,6 +76,8 @@ export async function POST(request) {
       console.log('🚗 DRIVERS_API: Authorization failed')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('🚗 DRIVERS_API: User authenticated:', user.role)
 
     const data = await request.json()
     console.log('🚗 DRIVERS_API: Request data:', { ...data, password: '***hidden***' })
