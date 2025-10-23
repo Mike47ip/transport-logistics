@@ -44,6 +44,10 @@ model TenantSettings {
   pricePerHour      Float   @default(0.0)
   fuelSurcharge     Float   @default(0.0)
   
+  // Notification settings
+  enableSmsNotifications Boolean @default(false)
+  enableEmailNotifications Boolean @default(true)
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -70,6 +74,10 @@ model User {
   role      UserRole
   isActive  Boolean  @default(true)
   
+  // Driver specific fields
+  licenseNumber String?
+  licenseExpiry DateTime?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -77,6 +85,7 @@ model User {
   assignedVehicles Vehicle[]
   deliveries      Delivery[] @relation("AssignedDriver")
   maintenanceRecords MaintenanceRecord[]
+  deliveryUpdates DeliveryUpdate[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -124,6 +133,11 @@ model Vehicle {
   insuranceExpiry DateTime?
   registrationExpiry DateTime?
   
+  // GPS Tracking
+  lastKnownLat    Float?
+  lastKnownLng    Float?
+  lastLocationUpdate DateTime?
+  
   isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -155,6 +169,10 @@ model Client {
   isActive      Boolean  @default(true)
   tenantId      String
   
+  // Notification preferences
+  smsNotifications   Boolean @default(true)
+  emailNotifications Boolean @default(true)
+  
   tenant        Tenant     @relation(fields: [tenantId], references: [id])
   deliveries    Delivery[]
   
@@ -168,7 +186,10 @@ enum DeliveryStatus {
   PENDING
   ASSIGNED
   IN_PROGRESS
+  OUT_FOR_DELIVERY  // Driver is en route to delivery location
   DELIVERED
+  FAILED_DELIVERY   // Delivery attempt failed
+  RETURNED          // Cargo returned to sender
   CANCELLED
 }
 
@@ -177,6 +198,18 @@ enum DeliveryPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum DeliveryIssueType {
+  VEHICLE_BREAKDOWN
+  TRAFFIC_DELAY
+  WEATHER_DELAY
+  CUSTOMER_UNAVAILABLE
+  WRONG_ADDRESS
+  DAMAGED_CARGO
+  ACCIDENT
+  FUEL_SHORTAGE
+  OTHER
 }
 
 model Delivery {
@@ -215,6 +248,19 @@ model Delivery {
   status           DeliveryStatus @default(PENDING)
   priority         DeliveryPriority @default(NORMAL)
   
+  // Enhanced tracking fields
+  currentLocation  String?
+  currentLat       Float?
+  currentLng       Float?
+  issueReported    Boolean @default(false)
+  currentIssue     DeliveryIssueType?
+  lastUpdatedBy    String?
+  
+  // Proof of delivery
+  deliveryProofUrl String? // Photo or signature URL
+  recipientName    String?
+  recipientSignature String?
+  
   // Pricing
   estimatedPrice   Float?
   actualPrice      Float?
@@ -224,14 +270,90 @@ model Delivery {
   // Timestamps
   scheduledAt      DateTime?
   startedAt        DateTime?
+  pickedUpAt       DateTime?
+  outForDeliveryAt DateTime?
   deliveredAt      DateTime?
+  returnedAt       DateTime?
   
   notes            String?
   
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // Relations
+  updates          DeliveryUpdate[]
+  notifications    DeliveryNotification[]
+
   @@map("deliveries")
+}
+
+model DeliveryUpdate {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  // Status and location
+  status      DeliveryStatus
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  notes       String?
+  
+  // Issue reporting
+  issueType   DeliveryIssueType?
+  issueDescription String?
+  issueResolved Boolean @default(false)
+  
+  // Media attachments
+  photoUrl    String? // Photo evidence of issue or progress
+  
+  // Who made the update
+  updatedBy   String
+  updater     User     @relation(fields: [updatedBy], references: [id])
+  
+  // Automatic or manual update
+  isAutomatic Boolean @default(false)
+  
+  createdAt   DateTime @default(now())
+
+  @@map("delivery_updates")
+}
+
+enum NotificationType {
+  STATUS_UPDATE
+  ISSUE_REPORTED
+  DELIVERY_COMPLETED
+  DELIVERY_FAILED
+  DELAY_NOTIFICATION
+  PICKUP_REMINDER
+}
+
+enum NotificationMethod {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+model DeliveryNotification {
+  id           String             @id @default(cuid())
+  deliveryId   String
+  delivery     Delivery           @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  type         NotificationType
+  method       NotificationMethod
+  recipient    String // email or phone number
+  subject      String?
+  message      String
+  
+  sent         Boolean            @default(false)
+  sentAt       DateTime?
+  failed       Boolean            @default(false)
+  failureReason String?
+  
+  createdAt    DateTime           @default(now())
+
+  @@map("delivery_notifications")
 }
 
 enum MaintenanceType {
