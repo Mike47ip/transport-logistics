@@ -1,4 +1,4 @@
-// app\api\deliveries\[id]\route.js
+// app/api/deliveries/[id]/route.js
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -6,7 +6,8 @@ import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(request, { params }) {
   try {
-    console.log('📦 DELIVERY_DETAIL: GET request for ID:', params.id)
+    const { id } = await params // Fix: await params
+    console.log('📦 DELIVERY_DETAIL: GET request for ID:', id)
     
     const user = await getCurrentUser(request)
     if (!user) {
@@ -15,7 +16,7 @@ export async function GET(request, { params }) {
 
     const delivery = await prisma.delivery.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: user.tenantId
       },
       include: {
@@ -48,7 +49,8 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
-    console.log('📦 DELIVERY_UPDATE: PUT request for ID:', params.id)
+    const { id } = await params // Fix: await params
+    console.log('📦 DELIVERY_UPDATE: PUT request for ID:', id)
     
     const user = await getCurrentUser(request)
     if (!user || !['ADMIN', 'MANAGER', 'DRIVER'].includes(user.role)) {
@@ -56,13 +58,13 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const data = await request.json()
+    let data = await request.json() // Fix: use let instead of const
     console.log('📦 DELIVERY_UPDATE: Update data:', data)
 
     // Verify delivery belongs to user's tenant
     const existingDelivery = await prisma.delivery.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: user.tenantId
       }
     })
@@ -85,7 +87,35 @@ export async function PUT(request, { params }) {
           obj[key] = data[key]
           return obj
         }, {})
-      data = filteredData
+      data = filteredData // This was the const reassignment error
+    }
+
+    // Fix datetime formatting - convert to proper ISO format
+    const processDatetime = (dateValue) => {
+      if (!dateValue) return null
+      
+      // If it's already a full ISO string, use it
+      if (typeof dateValue === 'string' && dateValue.includes('T') && dateValue.length > 16) {
+        return new Date(dateValue)
+      }
+      
+      // If it's a short format like "2025-10-23T16:09", add seconds and timezone
+      if (typeof dateValue === 'string' && dateValue.includes('T')) {
+        return new Date(dateValue + ':00.000Z')
+      }
+      
+      return new Date(dateValue)
+    }
+
+    // Process all datetime fields
+    if (data.scheduledAt) {
+      data.scheduledAt = processDatetime(data.scheduledAt)
+    }
+    if (data.pickupDateTime) {
+      data.pickupDateTime = processDatetime(data.pickupDateTime)
+    }
+    if (data.deliveryDateTime) {
+      data.deliveryDateTime = processDatetime(data.deliveryDateTime)
     }
 
     // Auto-set timestamps based on status changes
@@ -124,9 +154,12 @@ export async function PUT(request, { params }) {
       }
     }
 
+    // Add lastUpdatedBy
+    data.lastUpdatedBy = user.id
+
     console.log('📦 DELIVERY_UPDATE: Updating delivery in database...')
     const updatedDelivery = await prisma.delivery.update({
-      where: { id: params.id },
+      where: { id: id },
       data: data,
       include: {
         client: {
@@ -155,7 +188,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    console.log('📦 DELIVERY_DELETE: DELETE request for ID:', params.id)
+    const { id } = await params // Fix: await params
+    console.log('📦 DELIVERY_DELETE: DELETE request for ID:', id)
     
     const user = await getCurrentUser(request)
     if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
@@ -166,7 +200,7 @@ export async function DELETE(request, { params }) {
     // Verify delivery belongs to user's tenant
     const existingDelivery = await prisma.delivery.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: user.tenantId
       }
     })
@@ -186,10 +220,10 @@ export async function DELETE(request, { params }) {
 
     console.log('📦 DELIVERY_DELETE: Deleting delivery from database...')
     await prisma.delivery.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
 
-    console.log('📦 DELIVERY_DELETE: Delivery deleted successfully:', params.id)
+    console.log('📦 DELIVERY_DELETE: Delivery deleted successfully:', id)
     return NextResponse.json({ message: 'Delivery deleted successfully' })
   } catch (error) {
     console.error('📦 DELIVERY_DELETE: Error details:', error)
