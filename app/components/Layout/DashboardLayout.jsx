@@ -1,3 +1,5 @@
+// app\components\Layout\DashboardLayout.jsx
+
 'use client';
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';

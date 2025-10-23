@@ -1,8 +1,15 @@
 'use client'
 
-import { MapPin, Package, User, Truck, Clock, ArrowRight, Phone, Mail } from 'lucide-react'
+import { MapPin, Package, User, Truck, Clock, ArrowRight, Phone, Mail, Eye, Edit } from 'lucide-react'
 
-export default function DeliveryCard({ delivery, onClick, getStatusColor, getPriorityColor }) {
+export default function DeliveryCard({ 
+  delivery, 
+  onView, 
+  onEdit, 
+  getStatusColor, 
+  getPriorityColor, 
+  currentUser 
+}) {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not scheduled'
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -22,11 +29,13 @@ export default function DeliveryCard({ delivery, onClick, getStatusColor, getPri
     }).format(amount)
   }
 
+  const canEdit = () => {
+    if (!currentUser) return false
+    return ['ADMIN', 'MANAGER'].includes(currentUser.role)
+  }
+
   return (
-    <div 
-      onClick={onClick}
-      className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer p-6"
-    >
+    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="bg-blue-100 p-2 rounded-lg">
@@ -41,6 +50,7 @@ export default function DeliveryCard({ delivery, onClick, getStatusColor, getPri
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Status badges - non-clickable */}
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(delivery.priority)}`}>
             {delivery.priority}
           </span>
@@ -133,7 +143,7 @@ export default function DeliveryCard({ delivery, onClick, getStatusColor, getPri
       </div>
 
       {/* Price and Distance */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+      <div className="flex items-center justify-between pt-4 border-t border-gray-100 mb-4">
         <div className="flex items-center gap-4 text-sm">
           {delivery.distance && (
             <span className="text-gray-600">
@@ -162,7 +172,7 @@ export default function DeliveryCard({ delivery, onClick, getStatusColor, getPri
 
       {/* Special Instructions Preview */}
       {delivery.specialInstructions && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="pt-3 border-t border-gray-100 mb-4">
           <p className="text-xs text-gray-600">
             <span className="font-medium">Special Instructions:</span>{' '}
             {delivery.specialInstructions.length > 100 
@@ -172,6 +182,27 @@ export default function DeliveryCard({ delivery, onClick, getStatusColor, getPri
           </p>
         </div>
       )}
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+        <button
+          onClick={() => onView(delivery)}
+          className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-sm"
+        >
+          <Eye className="w-4 h-4" />
+          View
+        </button>
+        
+        {canEdit() && (
+          <button
+            onClick={() => onEdit(delivery)}
+            className="flex items-center gap-2 px-3 py-2 text-green-600 hover:text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors text-sm"
+          >
+            <Edit className="w-4 h-4" />
+            Edit
+          </button>
+        )}
+      </div>
     </div>
   )
 }

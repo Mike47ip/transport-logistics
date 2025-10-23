@@ -29,6 +29,7 @@ model Tenant {
   deliveries  Delivery[]
   maintenance MaintenanceRecord[]
   settings    TenantSettings?
+  deliveryStatusHistory DeliveryStatusHistory[]
 
   @@map("tenants")
 }
@@ -86,6 +87,7 @@ model User {
   deliveries      Delivery[] @relation("AssignedDriver")
   maintenanceRecords MaintenanceRecord[]
   deliveryUpdates DeliveryUpdate[]
+  statusHistoryUpdates DeliveryStatusHistory[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -186,10 +188,13 @@ enum DeliveryStatus {
   PENDING
   ASSIGNED
   IN_PROGRESS
-  OUT_FOR_DELIVERY  // Driver is en route to delivery location
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
   DELIVERED
-  FAILED_DELIVERY   // Delivery attempt failed
-  RETURNED          // Cargo returned to sender
+  FAILED_DELIVERY
+  DELAYED
+  RETURNED
   CANCELLED
 }
 
@@ -209,6 +214,7 @@ enum DeliveryIssueType {
   DAMAGED_CARGO
   ACCIDENT
   FUEL_SHORTAGE
+  SECURITY_ISSUE
   OTHER
 }
 
@@ -249,12 +255,14 @@ model Delivery {
   priority         DeliveryPriority @default(NORMAL)
   
   // Enhanced tracking fields
-  currentLocation  String?
-  currentLat       Float?
-  currentLng       Float?
-  issueReported    Boolean @default(false)
-  currentIssue     DeliveryIssueType?
-  lastUpdatedBy    String?
+  currentLocation     String?
+  currentLat          Float?
+  currentLng          Float?
+  lastLocationUpdate  DateTime?
+  issueType           DeliveryIssueType?
+  issueDescription    String?
+  issueReported       Boolean @default(false)
+  lastUpdatedBy       String?
   
   // Proof of delivery
   deliveryProofUrl String? // Photo or signature URL
@@ -283,8 +291,53 @@ model Delivery {
   // Relations
   updates          DeliveryUpdate[]
   notifications    DeliveryNotification[]
+  statusHistory    DeliveryStatusHistory[]
 
   @@map("deliveries")
+}
+
+// NEW: Enhanced Status History Model for detailed tracking timeline
+model DeliveryStatusHistory {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Reference to delivery
+  deliveryId        String
+  delivery          Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  // Status Information
+  status            DeliveryStatus
+  previousStatus    DeliveryStatus?
+  
+  // Location and Context
+  location          String?
+  latitude          Float?
+  longitude         Float?
+  notes             String?
+  
+  // Issue Information
+  issueType         DeliveryIssueType?
+  issueDescription  String?
+  issueResolved     Boolean @default(false)
+  
+  // Media Evidence
+  photoUrl          String? // Photo evidence
+  signature         String? // Digital signature
+  
+  // Audit Information
+  updatedBy         String?
+  updatedByUser     User?    @relation(fields: [updatedBy], references: [id])
+  
+  // Automatic tracking
+  isAutomatic       Boolean  @default(false)
+  deviceInfo        String?  // GPS device, mobile app, etc.
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([deliveryId, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("delivery_status_history")
 }
 
 model DeliveryUpdate {
@@ -326,6 +379,10 @@ enum NotificationType {
   DELIVERY_FAILED
   DELAY_NOTIFICATION
   PICKUP_REMINDER
+  JOURNEY_STARTED
+  CARGO_PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
 }
 
 enum NotificationMethod {
