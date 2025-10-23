@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout'
 import DeliveryCard from '@/components/deliveries/DeliveryCard'
 import CreateDeliveryModal from '@/components/deliveries/CreateDeliveryModal'
 import DeliveryDetailsModal from '@/components/deliveries/DeliveryDetailsModal'
+import { useSnackbar } from '@/context/SnackbarContext'
 
 export default function DeliveriesPage() {
   const [user, setUser] = useState(null)
@@ -25,6 +26,9 @@ export default function DeliveriesPage() {
     delivered: 0,
     cancelled: 0
   })
+  
+  // Use the snackbar hook
+  const { showSuccess, showError, showInfo, showWarning } = useSnackbar()
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -34,31 +38,34 @@ export default function DeliveriesPage() {
     fetchDeliveries()
   }, [])
 
-const fetchDeliveries = async () => {
-  try {
-    console.log('🚚 DELIVERIES: Fetching deliveries...')
-    const response = await fetch('/api/deliveries', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+  const fetchDeliveries = async () => {
+    try {
+      console.log('🚚 DELIVERIES: Fetching deliveries...')
+      setLoading(true)
+      const response = await fetch('/api/deliveries', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      console.log('🚚 DELIVERIES: Response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🚚 DELIVERIES: Loaded deliveries:', data.length)
+        setDeliveries(data)
+        calculateStats(data)
+      } else {
+        console.error('🚚 DELIVERIES: Failed to fetch deliveries:', response.status)
+        showError('Failed to load deliveries. Please try again.')
       }
-    })
-    
-    console.log('🚚 DELIVERIES: Response status:', response.status)
-    
-    if (response.ok) {
-      const data = await response.json()
-      console.log('🚚 DELIVERIES: Loaded deliveries:', data.length)
-      setDeliveries(data)
-      calculateStats(data)
-    } else {
-      console.error('🚚 DELIVERIES: Failed to fetch deliveries:', response.status)
+    } catch (error) {
+      console.error('🚚 DELIVERIES: Error fetching deliveries:', error)
+      showError('Error loading deliveries. Please check your connection.')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('🚚 DELIVERIES: Error fetching deliveries:', error)
-  } finally {
-    setLoading(false)
   }
-}
 
   const calculateStats = (deliveriesData) => {
     const stats = {
@@ -103,6 +110,8 @@ const fetchDeliveries = async () => {
   const handleDeliveryCreated = (newDelivery) => {
     setDeliveries(prev => [newDelivery, ...prev])
     setShowCreateModal(false)
+    // Show success snackbar
+    showSuccess(`Delivery ${newDelivery.trackingNumber} created successfully!`)
   }
 
   const handleDeliveryUpdated = (updatedDelivery) => {
@@ -112,6 +121,8 @@ const fetchDeliveries = async () => {
       )
     )
     setSelectedDelivery(updatedDelivery)
+    // Show success snackbar for update
+    showSuccess(`Delivery ${updatedDelivery.trackingNumber} updated successfully!`)
   }
 
   const getStatusColor = (status) => {

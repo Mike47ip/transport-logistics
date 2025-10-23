@@ -1,6 +1,7 @@
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import AuthWrapper from "@/components/Auth/AuthWrapper";
+import { SnackbarProvider } from "./context/SnackbarContext"; // Add this import
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -17,9 +18,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${outfit.variable} font-sans antialiased`}>
-        <AuthWrapper>
-          {children}
-        </AuthWrapper>
+        <SnackbarProvider> {/* Add this wrapper */}
+          <AuthWrapper>
+            {children}
+          </AuthWrapper>
+        </SnackbarProvider> {/* Close the wrapper */}
       </body>
     </html>
   );
