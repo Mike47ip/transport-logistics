@@ -44,15 +44,6 @@ export default function EditDeliveryModal({
   const [clients, setClients] = useState([])
   const [vehicles, setVehicles] = useState([])
   const [drivers, setDrivers] = useState([])
-  
-  // Status update form
-  const [newUpdate, setNewUpdate] = useState({
-    status: '',
-    location: '',
-    notes: '',
-    issueType: '',
-    issueDescription: ''
-  })
 
   const { showSuccess, showError } = useSnackbar()
 
@@ -91,15 +82,6 @@ export default function EditDeliveryModal({
       estimatedDuration: delivery.estimatedDuration?.toString() || '',
       scheduledAt: delivery.scheduledAt ? new Date(delivery.scheduledAt).toISOString().slice(0, 16) : '',
       notes: delivery.notes || ''
-    })
-    
-    // Initialize status update form
-    setNewUpdate({
-      status: delivery.status || '',
-      location: '',
-      notes: '',
-      issueType: '',
-      issueDescription: ''
     })
   }
 
@@ -144,11 +126,18 @@ export default function EditDeliveryModal({
       setLoading(true)
       
       // Determine if status should auto-change to ASSIGNED
-      const shouldAutoAssign = 
-        delivery.status === 'PENDING' && 
-        editData.driverId && 
-        editData.vehicleId &&
-        (!delivery.driverId || !delivery.vehicleId) // Only if not already assigned
+      const hasDriverAndVehicle = !!(editData.driverId && editData.vehicleId)
+      const shouldAutoAssign = delivery.status === 'PENDING' && hasDriverAndVehicle
+
+      console.log('Auto-assignment check:', {
+        currentStatus: delivery.status,
+        hasDriverAndVehicle,
+        previousDriver: delivery.driverId,
+        previousVehicle: delivery.vehicleId,
+        newDriver: editData.driverId,
+        newVehicle: editData.vehicleId,
+        shouldAutoAssign
+      })
 
       const updatePayload = {
         ...editData,
@@ -164,6 +153,8 @@ export default function EditDeliveryModal({
         // Auto-change status to ASSIGNED if driver and vehicle are assigned
         status: shouldAutoAssign ? 'ASSIGNED' : delivery.status
       }
+
+      console.log('Sending payload:', updatePayload)
 
       const response = await fetch(`/api/deliveries/${delivery.id}`, {
         method: 'PUT',
@@ -188,9 +179,11 @@ export default function EditDeliveryModal({
         onClose()
       } else {
         const error = await response.json()
+        console.error('API Error:', error)
         showError(error.message || 'Failed to update delivery')
       }
     } catch (error) {
+      console.error('Error updating delivery:', error)
       showError('Error updating delivery')
     } finally {
       setLoading(false)
@@ -232,52 +225,11 @@ export default function EditDeliveryModal({
     }))
   }
 
-  const handleUpdateChange = (field, value) => {
-    setNewUpdate(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
-
   const canUpdateStatus = () => {
     if (!currentUser) return false
     if (['ADMIN', 'MANAGER'].includes(currentUser.role)) return true
     if (currentUser.role === 'DRIVER' && delivery.driverId === currentUser.id) return true
     return false
-  }
-
-  const getNextStatuses = (currentStatus) => {
-    const statusFlow = {
-      PENDING: ['ASSIGNED', 'CANCELLED'],
-      ASSIGNED: ['IN_PROGRESS', 'CANCELLED'],
-      IN_PROGRESS: ['PICKED_UP', 'FAILED_DELIVERY', 'CANCELLED'],
-      PICKED_UP: ['IN_TRANSIT', 'FAILED_DELIVERY'],
-      IN_TRANSIT: ['OUT_FOR_DELIVERY', 'FAILED_DELIVERY', 'DELAYED'],
-      OUT_FOR_DELIVERY: ['DELIVERED', 'FAILED_DELIVERY'],
-      DELIVERED: [],
-      FAILED_DELIVERY: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RETURNED'],
-      DELAYED: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'FAILED_DELIVERY'],
-      RETURNED: ['ASSIGNED', 'CANCELLED'],
-      CANCELLED: []
-    }
-    return statusFlow[currentStatus] || []
-  }
-
-  const getStatusIcon = (status) => {
-    const icons = {
-      PENDING: <Clock className="w-4 h-4" />,
-      ASSIGNED: <User className="w-4 h-4" />,
-      IN_PROGRESS: <Truck className="w-4 h-4" />,
-      PICKED_UP: <MapPin className="w-4 h-4" />,
-      IN_TRANSIT: <Navigation className="w-4 h-4" />,
-      OUT_FOR_DELIVERY: <ArrowRight className="w-4 h-4" />,
-      DELIVERED: <CheckCircle className="w-4 h-4" />,
-      FAILED_DELIVERY: <XCircle className="w-4 h-4" />,
-      DELAYED: <AlertTriangle className="w-4 h-4" />,
-      RETURNED: <RotateCcw className="w-4 h-4" />,
-      CANCELLED: <XCircle className="w-4 h-4" />
-    }
-    return icons[status] || <Clock className="w-4 h-4" />
   }
 
   const tabs = [
