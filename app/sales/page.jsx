@@ -22,6 +22,8 @@ export default function SalesRevenuePage() {
   const [showRecordPayment, setShowRecordPayment] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [showInvoiceDetails, setShowInvoiceDetails] = useState(false)
+  const [paymentSearch, setPaymentSearch] = useState('')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('all')
   const [filters, setFilters] = useState({
     status: 'all',
     client: 'all',
@@ -68,6 +70,24 @@ export default function SalesRevenuePage() {
     }
   }
 
+  const fetchPayments = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      const response = await fetch('/api/sales/payments', { headers })
+      if (response.ok) {
+        const data = await response.json()
+        setPayments(data)
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error)
+    }
+  }
+
   const handleInvoiceCreated = (newInvoice) => {
     setInvoices(prev => [newInvoice, ...prev])
     fetchSalesData() // Refresh dashboard data
@@ -96,11 +116,24 @@ export default function SalesRevenuePage() {
   }
 
   const handlePaymentRecorded = (payment) => {
-    // Refresh the invoices list to show updated payment status
+    // Refresh both invoices and payments to show updated status
     fetchSalesData()
+    fetchPayments() // Make sure to refresh payments too
     setShowRecordPayment(false)
     setSelectedInvoice(null)
   }
+
+  // Filter payments based on search and method
+  const filteredPayments = payments.filter(payment => {
+    const matchesSearch = paymentSearch === '' || 
+      payment.client?.name.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+      payment.invoice?.invoiceNumber.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+      payment.reference?.toLowerCase().includes(paymentSearch.toLowerCase())
+    
+    const matchesMethod = paymentMethodFilter === 'all' || payment.method === paymentMethodFilter
+    
+    return matchesSearch && matchesMethod
+  })
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-GH', {
@@ -325,7 +358,7 @@ export default function SalesRevenuePage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Payment Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -361,8 +394,8 @@ export default function SalesRevenuePage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex flex-col gap-1 items-center">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.paymentStatus)}`}>
                           {invoice.paymentStatus}
                         </span>
@@ -433,7 +466,19 @@ export default function SalesRevenuePage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Payment History</h3>
               <div className="flex items-center gap-3 mt-4 sm:mt-0">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search payments..."
+                    value={paymentSearch}
+                    onChange={(e) => setPaymentSearch(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
                 <select
+                  value={paymentMethodFilter}
+                  onChange={(e) => setPaymentMethodFilter(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 >
                   <option value="all">All Methods</option>
@@ -448,8 +493,8 @@ export default function SalesRevenuePage() {
 
           {/* Payments List */}
           <div className="divide-y divide-gray-200">
-            {payments.length > 0 ? (
-              payments.map((payment) => (
+            {filteredPayments.length > 0 ? (
+              filteredPayments.map((payment) => (
                 <div key={payment.id} className="p-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -502,23 +547,48 @@ export default function SalesRevenuePage() {
                     <div className="mt-4 pt-4 border-t border-gray-100">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500">Invoice Total:</span>
-                          <p className="font-medium">{formatCurrency(payment.invoice.total)}</p>
+                          <span className="text-gray-700 font-medium">Invoice Total:</span>
+                          <p className="font-semibold text-gray-900">{formatCurrency(payment.invoice.total)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Due Date:</span>
-                          <p className={`font-medium ${
+                          <span className="text-gray-700 font-medium">Due Date:</span>
+                          <p className={`font-semibold ${
                             new Date(payment.invoice.dueDate) < new Date() ? 'text-red-600' : 'text-gray-900'
                           }`}>
                             {new Date(payment.invoice.dueDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Payment Status:</span>
-                          <p className="font-medium">
-                            {payment.invoice.paymentStatus === 'PAID' ? 'Fully Paid' :
-                             payment.invoice.paymentStatus === 'PARTIAL' ? 'Partially Paid' :
-                             'Pending Payment'}
+                          <span className="text-gray-700 font-medium">Payment Status:</span>
+                          <p className="font-semibold">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              // Calculate actual payment status based on amounts
+                              (() => {
+                                const invoiceTotal = payment.invoice.total || 0
+                                const paidAmount = payment.invoice.paidAmount || 0
+                                
+                                if (paidAmount >= invoiceTotal) {
+                                  return 'bg-green-100 text-green-800' // PAID
+                                } else if (paidAmount > 0) {
+                                  return 'bg-blue-100 text-blue-800' // PARTIAL
+                                } else {
+                                  return 'bg-yellow-100 text-yellow-800' // PENDING
+                                }
+                              })()
+                            }`}>
+                              {(() => {
+                                const invoiceTotal = payment.invoice.total || 0
+                                const paidAmount = payment.invoice.paidAmount || 0
+                                
+                                if (paidAmount >= invoiceTotal) {
+                                  return 'PAID'
+                                } else if (paidAmount > 0) {
+                                  return 'PARTIAL'
+                                } else {
+                                  return 'PENDING'
+                                }
+                              })()}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -529,8 +599,26 @@ export default function SalesRevenuePage() {
             ) : (
               <div className="p-12 text-center">
                 <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No payments yet</h3>
-                <p className="text-gray-600">Payment history will appear here once you start recording payments.</p>
+                {paymentSearch || paymentMethodFilter !== 'all' ? (
+                  <>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No matching payments</h3>
+                    <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
+                    <button 
+                      onClick={() => {
+                        setPaymentSearch('')
+                        setPaymentMethodFilter('all')
+                      }}
+                      className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No payments yet</h3>
+                    <p className="text-gray-600">Payment history will appear here once you start recording payments.</p>
+                  </>
+                )}
               </div>
             )}
           </div>
