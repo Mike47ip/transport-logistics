@@ -34,6 +34,7 @@ model Tenant {
   deliveryStatusHistory DeliveryStatusHistory[]
   invoices    Invoice[]
   payments    Payment[]
+  expenses    Expense[]
 
   @@map("tenants")
 }
@@ -151,6 +152,7 @@ model Vehicle {
   // Relations
   deliveries      Delivery[]
   maintenanceRecords MaintenanceRecord[]
+  expenses        Expense[]
   
   @@unique([licensePlate, tenantId])
   @@map("vehicles")
@@ -590,4 +592,70 @@ model Payment {
   receiptUrl    String?       // Receipt/proof image
   
   @@map("payments")
+}
+
+// VEHICLE EXPENSE TRACKING MODEL
+
+enum ExpenseCategory {
+  REGISTRATION
+  INSURANCE
+  ROADWORTHY
+  INCOME_TAX
+  MAINTENANCE
+  FUEL
+  REPAIRS
+  TIRES
+  SERVICING
+  PARKING
+  TOLLS
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  vehicleId     String
+  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  // Expense details
+  category      ExpenseCategory
+  description   String
+  amount        Float
+  expenseDate   DateTime
+  
+  // Payment tracking
+  status        ExpenseStatus   @default(PENDING)
+  paidAt        DateTime?
+  
+  // Documentation
+  receiptNumber String?
+  vendor        String?
+  notes         String?
+  receiptUrl    String?         // Photo or PDF of receipt
+  
+  // Due date for recurring expenses
+  dueDate       DateTime?
+  
+  // Recurring expense tracking
+  isRecurring   Boolean         @default(false)
+  recurringPeriod String?       // monthly, quarterly, annually
+  nextDueDate   DateTime?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("expenses")
+  @@index([tenantId, vehicleId])
+  @@index([tenantId, category])
+  @@index([tenantId, expenseDate])
+  @@index([tenantId, status])
 }
