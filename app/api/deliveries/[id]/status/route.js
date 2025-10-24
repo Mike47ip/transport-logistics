@@ -6,90 +6,43 @@ import { getCurrentUser } from '@/lib/auth'
 
 export async function PATCH(request, { params }) {
   try {
-    console.log('📦 DELIVERY_STATUS_UPDATE: PATCH request for ID:', params.id)
-    
+    // Fix: Await params for Next.js 15
+    const { id } = await params
+    console.log('📦 DELIVERY_STATUS_UPDATE: PATCH request for ID:', id)
+
     const user = await getCurrentUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { status, location, notes, issueType, issueDescription } = await request.json()
-    const deliveryId = params.id
+    const deliveryId = id
 
     console.log('📦 DELIVERY_STATUS_UPDATE: Update data:', { status, location, notes, issueType })
 
-    // Verify delivery belongs to user's tenant
-    const delivery = await prisma.delivery.findFirst({
-      where: {
-        id: deliveryId,
-        tenantId: user.tenantId
-      },
-      include: {
-        vehicle: true,
-        driver: true
-      }
-    })
-
-    if (!delivery) {
-      console.log('📦 DELIVERY_STATUS_UPDATE: Delivery not found')
-      return NextResponse.json(
-        { error: 'Delivery not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check permissions
-    if (user.role === 'DRIVER' && delivery.driverId !== user.id) {
-      console.log('📦 DELIVERY_STATUS_UPDATE: Driver not authorized for this delivery')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Prepare update data
-    const updateData = { 
+    // Build update data object with correct field names
+    const updateData = {
       status,
       lastUpdatedBy: user.id,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      issueReported: !!issueType,
+      issueType: issueType || null,  // Use issueType not currentIssue
+      issueDescription: issueDescription || null,
+      currentLocation: location || null,
+      lastLocationUpdate: location ? new Date() : undefined
     }
 
-    // Update location if provided
-    if (location) {
-      updateData.currentLocation = location
-    }
-
-    // Set timestamps based on status changes
-    if (status !== delivery.status) {
-      switch (status) {
-        case 'IN_PROGRESS':
-          if (!delivery.startedAt) {
-            updateData.startedAt = new Date()
-          }
-          break
-        case 'OUT_FOR_DELIVERY':
-          if (!delivery.outForDeliveryAt) {
-            updateData.outForDeliveryAt = new Date()
-          }
-          break
-        case 'DELIVERED':
-          if (!delivery.deliveredAt) {
-            updateData.deliveredAt = new Date()
-          }
-          break
-        case 'RETURNED':
-          if (!delivery.returnedAt) {
-            updateData.returnedAt = new Date()
-          }
-          break
-      }
-    }
-
-    // Handle issue reporting
-    if (issueType) {
-      updateData.issueReported = true
-      updateData.currentIssue = issueType
-    } else if (status === 'DELIVERED' || status === 'IN_PROGRESS') {
-      // Clear issues when delivery progresses normally
-      updateData.issueReported = false
-      updateData.currentIssue = null
+    // Set timestamp fields based on status
+    if (status === 'IN_PROGRESS') {
+      updateData.startedAt = new Date()
+    } else if (status === 'PICKED_UP') {
+      updateData.pickedUpAt = new Date()
+    } else if (status === 'OUT_FOR_DELIVERY') {
+      updateData.outForDeliveryAt = new Date()
+    } else if (status === 'DELIVERED') {
+      updateData.deliveredAt = new Date()
+    } else if (status === 'RETURNED') {
+      updateData.returnedAt = new Date()
     }
 
     console.log('📦 DELIVERY_STATUS_UPDATE: Updating delivery...')
@@ -102,20 +55,37 @@ export async function PATCH(request, { params }) {
         data: updateData,
         include: {
           client: {
-            select: { id: true, name: true, phone: true, email: true }
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              email: true
+            }
           },
           vehicle: {
-            select: { id: true, licensePlate: true, make: true, model: true, type: true }
+            select: {
+              id: true,
+              licensePlate: true,
+              make: true,
+              model: true,
+              type: true
+            }
           },
           driver: {
-            select: { id: true, name: true, phone: true, email: true }
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              email: true
+            }
           }
         }
       })
 
-      // Create delivery update record
-      await tx.deliveryUpdate.create({
+      // Create status history entry
+      await tx.deliveryStatusHistory.create({
         data: {
+          tenantId: updatedDelivery.tenantId,
           deliveryId: deliveryId,
           status: status,
           location: location || null,
@@ -127,46 +97,12 @@ export async function PATCH(request, { params }) {
         }
       })
 
-      // Update vehicle status if needed
-      if (delivery.vehicleId) {
-        let vehicleStatus = 'AVAILABLE'
-        
-        switch (status) {
-          case 'IN_PROGRESS':
-          case 'OUT_FOR_DELIVERY':
-            vehicleStatus = 'IN_TRANSIT'
-            break
-          case 'DELIVERED':
-          case 'CANCELLED':
-          case 'RETURNED':
-            vehicleStatus = 'AVAILABLE'
-            break
-          default:
-            vehicleStatus = delivery.vehicle?.status || 'AVAILABLE'
-        }
-
-        await tx.vehicle.update({
-          where: { id: delivery.vehicleId },
-          data: { 
-            status: vehicleStatus,
-            ...(location && {
-              lastKnownLat: null, // You'd parse coordinates from location if needed
-              lastKnownLng: null,
-              lastLocationUpdate: new Date()
-            })
-          }
-        })
-      }
-
       return updatedDelivery
     })
 
-    console.log('📦 DELIVERY_STATUS_UPDATE: Update successful')
-
-    // TODO: Send notifications to client if status changed
-    // TODO: Log for audit trail
-    
+    console.log('📦 DELIVERY_STATUS_UPDATE: Success!')
     return NextResponse.json(result)
+
   } catch (error) {
     console.error('📦 DELIVERY_STATUS_UPDATE: Error:', error)
     return NextResponse.json(
