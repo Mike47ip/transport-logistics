@@ -1,4 +1,6 @@
-// app/prisma/schema.prisma
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -30,6 +32,8 @@ model Tenant {
   maintenance MaintenanceRecord[]
   settings    TenantSettings?
   deliveryStatusHistory DeliveryStatusHistory[]
+  invoices    Invoice[]
+  payments    Payment[]
 
   @@map("tenants")
 }
@@ -177,6 +181,8 @@ model Client {
   
   tenant        Tenant     @relation(fields: [tenantId], references: [id])
   deliveries    Delivery[]
+  invoices      Invoice[]
+  payments      Payment[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -285,6 +291,10 @@ model Delivery {
   
   notes            String?
   
+  // Invoice linking
+  invoiceId        String?
+  invoice          Invoice?      @relation(fields: [invoiceId], references: [id])
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -292,11 +302,12 @@ model Delivery {
   updates          DeliveryUpdate[]
   notifications    DeliveryNotification[]
   statusHistory    DeliveryStatusHistory[]
+  invoiceItems     InvoiceItem[]
 
   @@map("deliveries")
 }
 
-// NEW: Enhanced Status History Model for detailed tracking timeline
+// Enhanced Status History Model for detailed tracking timeline
 model DeliveryStatusHistory {
   id                String   @id @default(cuid())
   tenantId          String
@@ -463,4 +474,120 @@ model MaintenanceRecord {
   updatedAt   DateTime @updatedAt
 
   @@map("maintenance_records")
+}
+
+// INVOICING SYSTEM MODELS
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CARD
+  CHEQUE
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  
+  invoiceNumber   String        @unique
+  
+  // Financial details
+  subtotal        Float         @default(0)
+  taxRate         Float         @default(0)
+  taxAmount       Float         @default(0)
+  discountAmount  Float         @default(0)
+  total           Float         @default(0)
+  paidAmount      Float         @default(0)
+  
+  // Status and dates
+  status          InvoiceStatus @default(DRAFT)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  issuedAt        DateTime?
+  dueDate         DateTime
+  paidAt          DateTime?
+  
+  // Additional info
+  notes           String?
+  termsConditions String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  deliveries      Delivery[]
+  items           InvoiceItem[]
+  payments        Payment[]
+  
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description String
+  quantity    Float   @default(1)
+  unitPrice   Float   @default(0)
+  total       Float   @default(0)
+  
+  // Optional delivery link
+  deliveryId  String?
+  delivery    Delivery? @relation(fields: [deliveryId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  invoiceId     String?
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
+  
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  
+  // Payment details
+  amount        Float
+  method        PaymentMethod
+  reference     String?       // Bank ref, mobile money ref, etc.
+  
+  status        PaymentStatus @default(PENDING)
+  
+  // Timestamps
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Additional info
+  notes         String?
+  receiptUrl    String?       // Receipt/proof image
+  
+  @@map("payments")
 }
