@@ -1,0 +1,661 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tenant model for multi-tenancy
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  logo        String?
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  vehicles    Vehicle[]
+  clients     Client[]
+  deliveries  Delivery[]
+  maintenance MaintenanceRecord[]
+  settings    TenantSettings?
+  deliveryStatusHistory DeliveryStatusHistory[]
+  invoices    Invoice[]
+  payments    Payment[]
+  expenses    Expense[]
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  id                String  @id @default(cuid())
+  tenantId          String  @unique
+  tenant            Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  currency          String  @default("USD")
+  timezone          String  @default("UTC")
+  pricePerKm        Float   @default(0.0)
+  pricePerHour      Float   @default(0.0)
+  fuelSurcharge     Float   @default(0.0)
+  
+  // Notification settings
+  enableSmsNotifications Boolean @default(false)
+  enableEmailNotifications Boolean @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("tenant_settings")
+}
+
+enum UserRole {
+  SUPER_ADMIN  
+  ADMIN
+  MANAGER
+  DRIVER
+  CLIENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  email     String
+  password  String
+  name      String
+  phone     String?
+  role      UserRole
+  isActive  Boolean  @default(true)
+  
+  // Driver specific fields
+  licenseNumber String?
+  licenseExpiry DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedVehicles Vehicle[]
+  deliveries      Delivery[] @relation("AssignedDriver")
+  maintenanceRecords MaintenanceRecord[]
+  deliveryUpdates DeliveryUpdate[]
+  statusHistoryUpdates DeliveryStatusHistory[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  IN_TRANSIT
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  TRAILER
+  PICKUP
+  MOTORCYCLE
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  licensePlate    String
+  make            String
+  model           String
+  year            Int
+  type            VehicleType
+  capacity        Float         // in tons or cubic meters
+  status          VehicleStatus @default(AVAILABLE)
+  
+  // Driver assignment
+  assignedDriverId String?
+  assignedDriver   User?         @relation(fields: [assignedDriverId], references: [id])
+  
+  // Vehicle details
+  vin             String?
+  color           String?
+  fuelType        String        @default("Diesel")
+  currentMileage  Float         @default(0)
+  
+  // Insurance & Registration
+  insuranceExpiry DateTime?
+  registrationExpiry DateTime?
+  
+  // GPS Tracking
+  lastKnownLat    Float?
+  lastKnownLng    Float?
+  lastLocationUpdate DateTime?
+  
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  deliveries      Delivery[]
+  maintenanceRecords MaintenanceRecord[]
+  expenses        Expense[]
+  
+  @@unique([licensePlate, tenantId])
+  @@map("vehicles")
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String
+  address       String
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String   @default("Ghana")
+  contactPerson String?
+  businessType  String?
+  taxId         String?
+  paymentTerms  Int      @default(30)
+  creditLimit   Float?
+  notes         String?
+  isActive      Boolean  @default(true)
+  tenantId      String
+  
+  // Notification preferences
+  smsNotifications   Boolean @default(true)
+  emailNotifications Boolean @default(true)
+  
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  deliveries    Delivery[]
+  invoices      Invoice[]
+  payments      Payment[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("clients")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED_DELIVERY
+  DELAYED
+  RETURNED
+  CANCELLED
+}
+
+enum DeliveryPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DeliveryIssueType {
+  VEHICLE_BREAKDOWN
+  TRAFFIC_DELAY
+  WEATHER_DELAY
+  CUSTOMER_UNAVAILABLE
+  WRONG_ADDRESS
+  DAMAGED_CARGO
+  ACCIDENT
+  FUEL_SHORTAGE
+  SECURITY_ISSUE
+  OTHER
+}
+
+model Delivery {
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Basic info
+  trackingNumber String        @unique
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id])
+  
+  vehicleId      String?
+  vehicle        Vehicle?      @relation(fields: [vehicleId], references: [id])
+  
+  driverId       String?
+  driver         User?         @relation("AssignedDriver", fields: [driverId], references: [id])
+  
+  // Delivery details
+  pickupAddress    String
+  pickupLat        Float?
+  pickupLng        Float?
+  pickupDateTime   DateTime?
+  
+  deliveryAddress  String
+  deliveryLat      Float?
+  deliveryLng      Float?
+  deliveryDateTime DateTime?
+  
+  // Cargo info
+  cargoDescription String
+  weight           Float?
+  dimensions       String? // "LxWxH"
+  specialInstructions String?
+  
+  status           DeliveryStatus @default(PENDING)
+  priority         DeliveryPriority @default(NORMAL)
+  
+  // Enhanced tracking fields
+  currentLocation     String?
+  currentLat          Float?
+  currentLng          Float?
+  lastLocationUpdate  DateTime?
+  issueType           DeliveryIssueType?
+  issueDescription    String?
+  issueReported       Boolean @default(false)
+  lastUpdatedBy       String?
+  
+  // Proof of delivery
+  deliveryProofUrl String? // Photo or signature URL
+  recipientName    String?
+  recipientSignature String?
+  
+  // Pricing
+  estimatedPrice   Float?
+  actualPrice      Float?
+  distance         Float? // in km
+  estimatedDuration Int?   // in minutes
+  
+  // Timestamps
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  pickedUpAt       DateTime?
+  outForDeliveryAt DateTime?
+  deliveredAt      DateTime?
+  returnedAt       DateTime?
+  
+  notes            String?
+  
+  // Invoice linking
+  invoiceId        String?
+  invoice          Invoice?      @relation(fields: [invoiceId], references: [id])
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  updates          DeliveryUpdate[]
+  notifications    DeliveryNotification[]
+  statusHistory    DeliveryStatusHistory[]
+  invoiceItems     InvoiceItem[]
+
+  @@map("deliveries")
+}
+
+// Enhanced Status History Model for detailed tracking timeline
+model DeliveryStatusHistory {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Reference to delivery
+  deliveryId        String
+  delivery          Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  // Status Information
+  status            DeliveryStatus
+  previousStatus    DeliveryStatus?
+  
+  // Location and Context
+  location          String?
+  latitude          Float?
+  longitude         Float?
+  notes             String?
+  
+  // Issue Information
+  issueType         DeliveryIssueType?
+  issueDescription  String?
+  issueResolved     Boolean @default(false)
+  
+  // Media Evidence
+  photoUrl          String? // Photo evidence
+  signature         String? // Digital signature
+  
+  // Audit Information
+  updatedBy         String?
+  updatedByUser     User?    @relation(fields: [updatedBy], references: [id])
+  
+  // Automatic tracking
+  isAutomatic       Boolean  @default(false)
+  deviceInfo        String?  // GPS device, mobile app, etc.
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([deliveryId, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("delivery_status_history")
+}
+
+model DeliveryUpdate {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  // Status and location
+  status      DeliveryStatus
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  notes       String?
+  
+  // Issue reporting
+  issueType   DeliveryIssueType?
+  issueDescription String?
+  issueResolved Boolean @default(false)
+  
+  // Media attachments
+  photoUrl    String? // Photo evidence of issue or progress
+  
+  // Who made the update
+  updatedBy   String
+  updater     User     @relation(fields: [updatedBy], references: [id])
+  
+  // Automatic or manual update
+  isAutomatic Boolean @default(false)
+  
+  createdAt   DateTime @default(now())
+
+  @@map("delivery_updates")
+}
+
+enum NotificationType {
+  STATUS_UPDATE
+  ISSUE_REPORTED
+  DELIVERY_COMPLETED
+  DELIVERY_FAILED
+  DELAY_NOTIFICATION
+  PICKUP_REMINDER
+  JOURNEY_STARTED
+  CARGO_PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+}
+
+enum NotificationMethod {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+model DeliveryNotification {
+  id           String             @id @default(cuid())
+  deliveryId   String
+  delivery     Delivery           @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  type         NotificationType
+  method       NotificationMethod
+  recipient    String // email or phone number
+  subject      String?
+  message      String
+  
+  sent         Boolean            @default(false)
+  sentAt       DateTime?
+  failed       Boolean            @default(false)
+  failureReason String?
+  
+  createdAt    DateTime           @default(now())
+
+  @@map("delivery_notifications")
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  EMERGENCY
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model MaintenanceRecord {
+  id          String            @id @default(cuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  vehicleId   String
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id])
+  
+  technicianId String?
+  technician   User?            @relation(fields: [technicianId], references: [id])
+  
+  type        MaintenanceType
+  status      MaintenanceStatus @default(SCHEDULED)
+  
+  title       String
+  description String
+  cost        Float?
+  
+  scheduledAt DateTime
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // Vehicle state
+  mileageAtService Float?
+  nextServiceMileage Float?
+  
+  // Parts and labor
+  partsUsed   Json? // Array of parts
+  laborHours  Float?
+  
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("maintenance_records")
+}
+
+// INVOICING SYSTEM MODELS
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CARD
+  CHEQUE
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  
+  invoiceNumber   String        @unique
+  
+  // Financial details
+  subtotal        Float         @default(0)
+  taxRate         Float         @default(0)
+  taxAmount       Float         @default(0)
+  discountAmount  Float         @default(0)
+  total           Float         @default(0)
+  paidAmount      Float         @default(0)
+  
+  // Status and dates
+  status          InvoiceStatus @default(DRAFT)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  issuedAt        DateTime?
+  dueDate         DateTime
+  paidAt          DateTime?
+  
+  // Additional info
+  notes           String?
+  termsConditions String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  deliveries      Delivery[]
+  items           InvoiceItem[]
+  payments        Payment[]
+  
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description String
+  quantity    Float   @default(1)
+  unitPrice   Float   @default(0)
+  total       Float   @default(0)
+  
+  // Optional delivery link
+  deliveryId  String?
+  delivery    Delivery? @relation(fields: [deliveryId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  invoiceId     String?
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
+  
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  
+  // Payment details
+  amount        Float
+  method        PaymentMethod
+  reference     String?       // Bank ref, mobile money ref, etc.
+  
+  status        PaymentStatus @default(PENDING)
+  
+  // Timestamps
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Additional info
+  notes         String?
+  receiptUrl    String?       // Receipt/proof image
+  
+  @@map("payments")
+}
+
+// VEHICLE EXPENSE TRACKING MODEL
+
+enum ExpenseCategory {
+  REGISTRATION
+  INSURANCE
+  ROADWORTHY
+  INCOME_TAX
+  MAINTENANCE
+  FUEL
+  REPAIRS
+  TIRES
+  SERVICING
+  PARKING
+  TOLLS
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  vehicleId     String
+  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  // Expense details
+  category      ExpenseCategory
+  description   String
+  amount        Float
+  expenseDate   DateTime
+  
+  // Payment tracking
+  status        ExpenseStatus   @default(PENDING)
+  paidAt        DateTime?
+  
+  // Documentation
+  receiptNumber String?
+  vendor        String?
+  notes         String?
+  receiptUrl    String?         // Photo or PDF of receipt
+  
+  // Due date for recurring expenses
+  dueDate       DateTime?
+  
+  // Recurring expense tracking
+  isRecurring   Boolean         @default(false)
+  recurringPeriod String?       // monthly, quarterly, annually
+  nextDueDate   DateTime?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("expenses")
+  @@index([tenantId, vehicleId])
+  @@index([tenantId, category])
+  @@index([tenantId, expenseDate])
+  @@index([tenantId, status])
+}

@@ -8,8 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +21,18 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Fix for modal inputs - ensure they don't inherit dark mode colors */
+.bg-white input,
+.bg-white textarea, 
+.bg-white select {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
+  color: #6b7280;
 }
