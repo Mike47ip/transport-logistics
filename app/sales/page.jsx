@@ -6,6 +6,10 @@ import {
   ArrowUpRight, ArrowDownRight, Filter, Download,
   Eye, Edit, Trash2, Plus, Search, MoreHorizontal
 } from 'lucide-react'
+import CreateInvoiceModal from '@/components/Invoices/CreateInvoiceModal'
+import RecordPaymentModal from '@/components/Invoices/RecordPaymentModal'
+import InvoiceDetailsModal from '@/components/Invoices/InvoiceDetailsModal'
+import { InvoiceActionsCompact } from '@/components/Invoices/InvoiceActions'
 
 export default function SalesRevenuePage() {
   const [loading, setLoading] = useState(true)
@@ -14,6 +18,10 @@ export default function SalesRevenuePage() {
   const [payments, setPayments] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
   const [dateRange, setDateRange] = useState('this-month')
+  const [showCreateInvoice, setShowCreateInvoice] = useState(false)
+  const [showRecordPayment, setShowRecordPayment] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false)
   const [filters, setFilters] = useState({
     status: 'all',
     client: 'all',
@@ -60,6 +68,40 @@ export default function SalesRevenuePage() {
     }
   }
 
+  const handleInvoiceCreated = (newInvoice) => {
+    setInvoices(prev => [newInvoice, ...prev])
+    fetchSalesData() // Refresh dashboard data
+  }
+
+  const handleViewInvoice = (invoice) => {
+    setSelectedInvoice(invoice)
+    setShowInvoiceDetails(true)
+  }
+
+  const handleRecordPayment = (invoice) => {
+    setSelectedInvoice(invoice)
+    setShowRecordPayment(true)
+  }
+
+  const handleEditInvoice = (invoice) => {
+    // TODO: Implement edit functionality
+    console.log('Edit invoice:', invoice.id)
+  }
+
+  const handleDeleteInvoice = (invoice) => {
+    if (confirm(`Are you sure you want to delete invoice ${invoice.invoiceNumber}?`)) {
+      // TODO: Implement delete functionality
+      console.log('Delete invoice:', invoice.id)
+    }
+  }
+
+  const handlePaymentRecorded = (payment) => {
+    // Refresh the invoices list to show updated payment status
+    fetchSalesData()
+    setShowRecordPayment(false)
+    setSelectedInvoice(null)
+  }
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
@@ -70,11 +112,17 @@ export default function SalesRevenuePage() {
 
   const getStatusColor = (status) => {
     const colors = {
+      // Invoice statuses
       'PAID': 'bg-green-100 text-green-800',
       'PENDING': 'bg-yellow-100 text-yellow-800',
+      'PARTIAL': 'bg-blue-100 text-blue-800',
       'OVERDUE': 'bg-red-100 text-red-800',
       'DRAFT': 'bg-gray-100 text-gray-800',
-      'CANCELLED': 'bg-red-100 text-red-800'
+      'SENT': 'bg-blue-100 text-blue-800',
+      'CANCELLED': 'bg-red-100 text-red-800',
+      // Payment statuses
+      'FAILED': 'bg-red-100 text-red-800',
+      'REFUNDED': 'bg-orange-100 text-orange-800'
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
   }
@@ -138,15 +186,16 @@ export default function SalesRevenuePage() {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+            style={{ color: '#111827' }}
           >
-            <option value="today">Today</option>
-            <option value="this-week">This Week</option>
-            <option value="this-month">This Month</option>
-            <option value="last-month">Last Month</option>
-            <option value="this-quarter">This Quarter</option>
-            <option value="this-year">This Year</option>
-            <option value="custom">Custom Range</option>
+            <option value="today" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Today</option>
+            <option value="this-week" style={{ color: '#111827', backgroundColor: '#ffffff' }}>This Week</option>
+            <option value="this-month" style={{ color: '#111827', backgroundColor: '#ffffff' }}>This Month</option>
+            <option value="last-month" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Last Month</option>
+            <option value="this-quarter" style={{ color: '#111827', backgroundColor: '#ffffff' }}>This Quarter</option>
+            <option value="this-year" style={{ color: '#111827', backgroundColor: '#ffffff' }}>This Year</option>
+            <option value="custom" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Custom Range</option>
           </select>
           
           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
@@ -251,7 +300,10 @@ export default function SalesRevenuePage() {
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                <button 
+                  onClick={() => setShowCreateInvoice(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
                   <Plus className="w-4 h-4" />
                   New Invoice
                 </button>
@@ -274,7 +326,7 @@ export default function SalesRevenuePage() {
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Payment Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Due Date
@@ -291,32 +343,77 @@ export default function SalesRevenuePage() {
                       <div className="text-sm font-medium text-gray-900">
                         {invoice.invoiceNumber}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{invoice.client?.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {formatCurrency(invoice.amount)}
+                      <div className="text-sm text-gray-500">
+                        {invoice.deliveries?.length > 0 && `${invoice.deliveries.length} deliveries`}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
-                        {invoice.status}
-                      </span>
+                      <div className="text-sm text-gray-900">{invoice.client?.name}</div>
+                      <div className="text-sm text-gray-500">{invoice.client?.phone}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(invoice.dueDate).toLocaleDateString()}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(invoice.total)}
+                      </div>
+                      {invoice.paidAmount > 0 && (
+                        <div className="text-sm text-green-600">
+                          {formatCurrency(invoice.paidAmount)} paid
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.paymentStatus)}`}>
+                          {invoice.paymentStatus}
+                        </span>
+                        {invoice.paymentStatus === 'PENDING' && new Date(invoice.dueDate) < new Date() && (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            OVERDUE
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {new Date(invoice.dueDate).toLocaleDateString()}
+                      </div>
+                      {new Date(invoice.dueDate) < new Date() && invoice.paymentStatus !== 'PAID' && (
+                        <div className="text-sm text-red-600">
+                          {Math.floor((new Date() - new Date(invoice.dueDate)) / (1000 * 60 * 60 * 24))} days overdue
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-900">
+                        <InvoiceActionsCompact invoice={invoice} />
+                        <button 
+                          onClick={() => handleViewInvoice(invoice)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="View Invoice Details"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-gray-900">
+                        {invoice.paymentStatus !== 'PAID' && (
+                          <button 
+                            onClick={() => handleRecordPayment(invoice)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Record Payment"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleEditInvoice(invoice)}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="Edit Invoice"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="text-red-600 hover:text-red-900">
+                        <button 
+                          onClick={() => handleDeleteInvoice(invoice)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete Invoice"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -330,26 +427,112 @@ export default function SalesRevenuePage() {
       )}
 
       {activeTab === 'payments' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Payments</h3>
-          <div className="space-y-4">
-            {payments.map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{payment.client?.name}</p>
-                    <p className="text-sm text-gray-600">{payment.invoiceNumber}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">{formatCurrency(payment.amount)}</p>
-                  <p className="text-sm text-gray-600">{new Date(payment.createdAt).toLocaleDateString()}</p>
-                </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {/* Payments Header */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Payment History</h3>
+              <div className="flex items-center gap-3 mt-4 sm:mt-0">
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="CASH">Cash</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="CARD">Card</option>
+                </select>
               </div>
-            ))}
+            </div>
+          </div>
+
+          {/* Payments List */}
+          <div className="divide-y divide-gray-200">
+            {payments.length > 0 ? (
+              payments.map((payment) => (
+                <div key={payment.id} className="p-6 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">{payment.client?.name}</p>
+                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                            {payment.method.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                          {payment.invoice && (
+                            <p className="text-sm text-gray-600">
+                              Invoice: {payment.invoice.invoiceNumber}
+                            </p>
+                          )}
+                          {payment.reference && (
+                            <p className="text-sm text-gray-600">
+                              Ref: {payment.reference}
+                            </p>
+                          )}
+                        </div>
+                        {payment.notes && (
+                          <p className="text-sm text-gray-500 mt-1">{payment.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900 text-lg">
+                        {formatCurrency(payment.amount)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(payment.paidAt || payment.createdAt).toLocaleDateString()}
+                      </p>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
+                        payment.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                        payment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {payment.status}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Payment Details Expansion */}
+                  {payment.invoice && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Invoice Total:</span>
+                          <p className="font-medium">{formatCurrency(payment.invoice.total)}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Due Date:</span>
+                          <p className={`font-medium ${
+                            new Date(payment.invoice.dueDate) < new Date() ? 'text-red-600' : 'text-gray-900'
+                          }`}>
+                            {new Date(payment.invoice.dueDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Payment Status:</span>
+                          <p className="font-medium">
+                            {payment.invoice.paymentStatus === 'PAID' ? 'Fully Paid' :
+                             payment.invoice.paymentStatus === 'PARTIAL' ? 'Partially Paid' :
+                             'Pending Payment'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-12 text-center">
+                <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No payments yet</h3>
+                <p className="text-gray-600">Payment history will appear here once you start recording payments.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -375,6 +558,42 @@ export default function SalesRevenuePage() {
             ))}
           </div>
         </div>
+      )}
+      
+      {/* Create Invoice Modal */}
+      {showCreateInvoice && (
+        <CreateInvoiceModal
+          onClose={() => setShowCreateInvoice(false)}
+          onInvoiceCreated={handleInvoiceCreated}
+        />
+      )}
+
+      {/* Record Payment Modal */}
+      {showRecordPayment && selectedInvoice && (
+        <RecordPaymentModal
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowRecordPayment(false)
+            setSelectedInvoice(null)
+          }}
+          onPaymentRecorded={handlePaymentRecorded}
+        />
+      )}
+
+      {/* Invoice Details Modal */}
+      {showInvoiceDetails && selectedInvoice && (
+        <InvoiceDetailsModal
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowInvoiceDetails(false)
+            setSelectedInvoice(null)
+          }}
+          onPaymentRecord={(invoice) => {
+            setSelectedInvoice(invoice)
+            setShowInvoiceDetails(false)
+            setShowRecordPayment(true)
+          }}
+        />
       )}
     </div>
   )
