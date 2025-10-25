@@ -1,4 +1,4 @@
-// app/api/expenses/route.js
+// app\api\expense\route.js
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'

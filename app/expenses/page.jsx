@@ -6,10 +6,10 @@ import {
   Filter, Download, Eye, Edit, Trash2, Search,
   PieChart, BarChart3, Receipt, FileText
 } from 'lucide-react'
-import CreateExpenseModal from './CreateExpenseModal'
-import ExpenseDetailsModal from './ExpenseDetailsModal'
-import { ExpenseActionsCompact } from './ExpenseActions'
-import ExpensePieChart from './ExpensePieChart'
+import CreateExpenseModal from '@/components/expenses/CreateExpenseModal'
+import ExpenseDetailsModal from '@/components/expenses/ExpenseDetailsModal'
+import { ExpenseActionsCompact } from '@/components/expenses/ExpenseActionsCompact'
+import ExpensePieChart from '@/components/expenses/ExpensePieChart'
 
 export default function ExpensesPage() {
   const [loading, setLoading] = useState(true)
