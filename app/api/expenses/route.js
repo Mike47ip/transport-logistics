@@ -1,4 +1,4 @@
-// app\api\expense\route.js
+// app/api/expenses/route.js
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
@@ -59,7 +59,7 @@ export async function GET(request) {
         vehicle: {
           select: {
             id: true,
-            registrationNumber: true,
+            licensePlate: true,  // Fixed: using licensePlate instead of registrationNumber
             make: true,
             model: true,
             year: true
@@ -142,7 +142,7 @@ export async function POST(request) {
         vehicle: {
           select: {
             id: true,
-            registrationNumber: true,
+            licensePlate: true,  // Fixed: using licensePlate instead of registrationNumber
             make: true,
             model: true,
             year: true

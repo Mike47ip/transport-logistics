@@ -101,11 +101,11 @@ export async function GET(request) {
       }
     })
 
-    // Active vehicles count
+    // Active vehicles count - Fixed to use correct enum value
     const activeVehiclesCount = await prisma.vehicle.count({
       where: {
         tenantId: user.tenantId,
-        status: 'ACTIVE'
+        status: 'AVAILABLE'  // Changed from 'ACTIVE' to 'AVAILABLE'
       }
     })
 
